@@ -4,7 +4,8 @@
   "steps_per_print": 1,
   "wandb": {
     "enabled": true,
-    "project": "megatron-deepspeed"
+    "team": "toyolabo",
+    "project": "megatron-deepspeed-hpc"
   },
   "zero_optimization": {
     "stage": 1
