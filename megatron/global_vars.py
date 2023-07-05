@@ -29,6 +29,7 @@ _GLOBAL_ARGS = None
 _GLOBAL_NUM_MICROBATCHES_CALCULATOR = None
 _GLOBAL_TOKENIZER = None
 _GLOBAL_TENSORBOARD_WRITER = None
+_GLOBAL_WANDB_WRITER = None
 _GLOBAL_ADLR_AUTORESUME = None
 _GLOBAL_TIMERS = None
 
@@ -64,6 +65,10 @@ def get_tensorboard_writer():
     return _GLOBAL_TENSORBOARD_WRITER
 
 
+def get_wandb_writer():
+    return _GLOBAL_WANDB_WRITER
+
+
 def get_adlr_autoresume():
     """ADLR autoresume object. It can be None so no need
     to check if it is initialized."""
@@ -86,6 +91,7 @@ def set_global_variables(extra_args_provider=None, args_defaults={},
     if args.vocab_file:
         _ = _build_tokenizer(args)
     _set_tensorboard_writer(args)
+    _set_wandb_writer(args)
     _set_adlr_autoresume(args)
     _set_timers()
 
@@ -143,6 +149,45 @@ def _set_tensorboard_writer(args):
             print('WARNING: TensorBoard writing requested but is not '
                   'available (are you using PyTorch 1.1.0 or later?), '
                   'no TensorBoard logs will be written.', flush=True)
+
+
+def _set_wandb_writer(args):
+    """Set wandb writer."""
+    global _GLOBAL_WANDB_WRITER
+    _ensure_var_is_not_initialized(_GLOBAL_WANDB_WRITER, "wandb writer")
+
+    if (
+        hasattr(args, "wandb_name")
+        and (args.wandb_name or args.wandb_id)
+        and args.rank == (args.world_size - 1)
+    ):
+        try:
+            import wandb
+            from datetime import datetime
+
+            now = datetime.now()
+            now = now.strftime("%Y-%m-%d-%H-%M-%S")
+            exp_name = args.wandb_name + "-" + now
+            entity: str = args.wandb_entity or "toyolabo"
+            wandb_input = {
+                "entity": entity,
+                "name": exp_name,
+                "config": args,
+                "project": "megatron-deepspeed-hpc",
+            }
+            if args.wandb_id is not None:
+                wandb_input["id"] = args.wandb_id
+                wandb_input["resume"] = "must"
+            wandb.init(**wandb_input)
+            _GLOBAL_WANDB_WRITER = True
+            print("> wandb ...")
+        except ModuleNotFoundError:
+            print(
+                "WARNING: wandb writing requested but is not "
+                "available (are you using PyTorch 1.1.0 or later?), "
+                "no wandb logs will be written.",
+                flush=True,
+            )
 
 
 def _set_adlr_autoresume(args):

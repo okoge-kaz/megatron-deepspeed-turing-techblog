@@ -20,6 +20,7 @@ import math
 import sys
 import time
 import json
+import wandb
 # The earliest we can measure the start time.
 _TRAIN_START_TIME = time.time()
 
@@ -28,7 +29,7 @@ from torch.nn.parallel.distributed import DistributedDataParallel as torchDDP
 
 from megatron import get_args
 from megatron import get_timers
-from megatron import get_tensorboard_writer
+from megatron import get_tensorboard_writer, get_wandb_writer
 from megatron import get_current_global_batch_size
 from megatron import get_num_microbatches
 from megatron import is_last_rank
@@ -694,6 +695,7 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
     args = get_args()
     timers = get_timers()
     writer = get_tensorboard_writer()
+    wandb_writer = get_wandb_writer()
 
     # Advanced, skipped, and Nan iterations.
     advanced_iters_key = 'advanced iterations'
@@ -827,6 +829,30 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
             timers.write(timers_to_log, writer, iteration,
                          normalizer=total_iterations)
 
+    wandb_stats = {}
+    if wandb_writer and (iteration % args.tensorboard_log_interval == 0) and is_last_rank():
+        wandb_stats["utils/steps-vs-samples"] = args.consumed_train_samples
+        wandb_stats["utils/steps-vs-tokens"] = args.consumed_train_tokens
+
+        if args.log_learning_rate_to_tensorboard:
+            wandb_stats["utils/learning-rate"] = learning_rate
+
+        if args.log_batch_size_to_tensorboard:
+            wandb_stats["utils/batch-size"] = batch_size
+
+        for key in loss_dict:
+            wandb_stats[f"lm-loss-training/{key}"] = loss_dict[key]
+        if args.log_loss_scale_to_tensorboard:
+            wandb_stats["others/loss-scale"] = loss_scale
+        if grad_norm is not None:
+            wandb_stats["others/grad-norm"] = grad_norm
+        if num_zeros_in_grad is not None:
+            wandb_stats["others/num-zeros"] = num_zeros_in_grad
+        if params_norm is not None:
+            wandb_stats["others/params-norm"] = params_norm
+        if hasattr(args, 'actual_seq_length'):
+            wandb_stats["others/actual_seq_length"] = args.actual_seq_length
+
     if iteration % args.tensorboard_log_interval == 0:
         # This logging write various optimizer states to tensorboard. This
         # feature may consume extra GPU memory thus is set at false by default.
@@ -898,6 +924,20 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
                 writer.add_scalar('optimizer/momentum_abs_max', opt_stats_2[2], iteration)
                 writer.add_scalar('optimizer/weight_abs_max', opt_stats_2[3], iteration)
 
+            if wandb_writer and is_last_rank():
+                wandb_stats['optimizer/variance_l2'] = opt_stats[0]**0.5
+                wandb_stats['optimizer/variance_sqrt_l2'] = opt_stats[1]**0.5
+                wandb_stats['optimizer/momentum_l2'] = opt_stats[2]**0.5
+                wandb_stats['optimizer/weight_l2'] = opt_stats[3]**0.5
+                wandb_stats['optimizer/variance_l1'] = opt_stats[4]
+                wandb_stats['optimizer/variance_sqrt_l1'] = opt_stats[5]
+                wandb_stats['optimizer/momentum_l1'] = opt_stats[6]
+                wandb_stats['optimizer/weight_l1'] = opt_stats[7]
+                wandb_stats['optimizer/variance_abs_max'] = opt_stats_2[0]
+                wandb_stats['optimizer/variance_sqrt_abs_max'] = opt_stats_2[1]
+                wandb_stats['optimizer/momentum_abs_max'] = opt_stats_2[2]
+                wandb_stats['optimizer/weight_abs_max'] = opt_stats_2[3]
+
     if iteration % args.log_interval == 0:
         elapsed_time = timers('interval-time').elapsed()
         elapsed_time_per_iteration = elapsed_time / total_iterations
@@ -908,15 +948,22 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
         num_layers = args.num_layers
         vocab_size = args.padded_vocab_size
 
-        samples_per_sec, tflops, approx_parameters_in_billions = throughput_calculator(model, args, elapsed_time, total_iterations)
+        samples_per_sec, tflops, model_parameters = throughput_calculator(model, args, elapsed_time, total_iterations)
 
         # Compute throughput.
         samples_per_sec_per_replica = samples_per_sec / args.data_parallel_size
         tokens_per_sec = samples_per_sec * seq_len
         tokens_per_sec_per_replica = tokens_per_sec / args.data_parallel_size
 
+        wandb_stats["stats/tflops"] = tflops
+        wandb_stats["stats/model_parameters"] = model_parameters
+        wandb_stats["stats/samples_per_sec"] = samples_per_sec
+        wandb_stats["stats/samples_per_sec_per_replica"] = samples_per_sec_per_replica
+        wandb_stats["stats/tokens_per_sec"] = tokens_per_sec
+        wandb_stats["stats/tokens_per_sec_per_replica"] = tokens_per_sec_per_replica
+
         # only the last rank process has a non-None _GLOBAL_TENSORBOARD_WRITER
-        if writer and is_last_rank():
+        if wandb_writer and is_last_rank():
             if args.log_timers_to_tensorboard:
                 writer.add_scalar('iteration-time/iteration-time',
                                   elapsed_time_per_iteration, iteration)
@@ -924,6 +971,13 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
                                   elapsed_time_per_iteration, args.consumed_train_samples)
                 writer.add_scalar('iteration-time/iteration-time vs tokens',
                                   elapsed_time_per_iteration, args.consumed_train_tokens)
+
+        if writer and is_last_rank():
+            if args.log_timers_to_tensorboard:
+                wandb_stats["timers/iteration-time"] = elapsed_time_per_iteration
+        if wandb_writer:
+            wandb.log(wandb_stats, step=iteration)
+
         log_string = ' iteration {:8d}/{:8d} |'.format(
             iteration, args.train_iters)
         log_string += ' consumed samples: {:12d} |'.format(
@@ -1210,6 +1264,7 @@ def evaluate_and_print_results(prefix, forward_step_func,
     """Helper function to evaluate and dump results on screen."""
     args = get_args()
     writer = get_tensorboard_writer()
+    wandb_writer = get_wandb_writer()
 
     total_loss_dict = evaluate(forward_step_func, data_iterator, model, verbose)
     string = ' validation loss at {} | '.format(prefix)
@@ -1235,6 +1290,14 @@ def evaluate_and_print_results(prefix, forward_step_func,
                                   ppl, args.consumed_train_samples)
                 writer.add_scalar(f'lm-loss-validation/{key} {data_type} ppl vs tokens',
                                   ppl, args.consumed_train_tokens)
+
+        if wandb_writer and is_last_rank():
+            wandb_stats = {}
+            data_type = 'test' if test else 'validation'
+            wandb_stats[f'lm-loss-validation/{key}_{data_type}'] = total_loss_dict[key].item()
+            if args.log_validation_ppl_to_tensorboard:
+                wandb_stats[f'lm-loss-validation/{key}_{data_type}_ppl'] = ppl
+            wandb.log(wandb_stats, step=iteration)
 
     length = len(string) + 1
     print_rank_last('-' * length)
