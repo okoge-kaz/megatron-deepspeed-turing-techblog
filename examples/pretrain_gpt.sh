@@ -2,12 +2,17 @@
 
 # Runs the "345M" parameter model
 
+source /model/hpc-team/Megatron-DeepSpeed/.env/bin/activate
+
 RANK=0
 WORLD_SIZE=1
 
-DATA_PATH=<Specify path and file prefix>_text_document
-CHECKPOINT_PATH=<Specify path>
+export LOCAL_RANK=$RANK
 
+DATA_PATH=dataset/BookCorpusDataset_text_document
+CHECKPOINT_PATH=checkpoints/gpt2_345m/1node-1gpu
+
+mkdir -p $CHECKPOINT_PATH
 
 python pretrain_gpt.py \
        --num-layers 24 \
@@ -22,8 +27,8 @@ python pretrain_gpt.py \
        --save $CHECKPOINT_PATH \
        --load $CHECKPOINT_PATH \
        --data-path $DATA_PATH \
-       --vocab-file gpt2-vocab.json \
-       --merge-file gpt2-merges.txt \
+       --vocab-file dataset/gpt2-vocab.json \
+       --merge-file dataset/gpt2-merges.txt \
        --data-impl mmap \
        --split 949,50,1 \
        --distributed-backend nccl \
