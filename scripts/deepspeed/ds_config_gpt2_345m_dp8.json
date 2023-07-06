@@ -2,11 +2,6 @@
   "train_batch_size": 64,
   "gradient_accumulation_steps": 1,
   "steps_per_print": 1,
-  "wandb": {
-    "enabled": true,
-    "team": "toyolabo",
-    "project": "megatron-deepspeed-hpc"
-  },
   "zero_optimization": {
     "stage": 1
   },

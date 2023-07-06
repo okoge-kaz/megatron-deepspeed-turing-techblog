@@ -682,6 +682,8 @@ def _add_distributed_args(parser):
                        dest='scatter_gather_tensors_in_pipeline')
     group.add_argument('--local-rank', type=int, default=None,
                        help='local rank passed from distributed launcher.')
+    group.add_argument('--local_rank', type=int, default=None,
+                       help='local rank passed from distributed launcher.')
     group.add_argument('--lazy-mpu-init', type=bool, required=False,
                        help='If set to True, initialize_megatron() '
                        'skips DDP initialization and returns function to '

@@ -44,7 +44,7 @@ LR_WARMUP_ITER=32000
 SEED=1234
 
 # deepspeed configuration
-CONFIG_FILE=scripts/ds_config_gpt2_345m_${NUM_GPUS}.json
+CONFIG_FILE=scripts/deepspeed/ds_config_gpt2_345m_dp8.json
 ZERO_STAGE=1
 
 
@@ -80,12 +80,15 @@ deepspeed --num_nodes ${NUM_NODES} \
   --clip-grad 1.0 \
   --lr-warmup-iters $LR_WARMUP_ITER \
   --checkpoint-activations \
-  --log-interval 100 \
-  --eval-interval 100 \
+  --log-interval 1 \
+  --eval-interval 1000 \
   --eval-iters 10 \
   --fp16 \
   --seed $SEED \
   --no-masked-softmax-fusion \
+  --log-batch-size-to-tensorboard \
+  --log-validation-ppl-to-tensorboard \
+  --wandb-name "gpt2_345m_1node_dp8_zero1-deepspeed" \
   --deepspeed \
   --deepspeed_config ${CONFIG_FILE} \
   --zero-stage ${ZERO_STAGE} \
