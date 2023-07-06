@@ -30,7 +30,7 @@ DP_SIZE=$((${NUM_GPUS} / (${PP_SIZE} * ${TP_SIZE})))
 GRAD_ACCUMULATION_STEPS=1
 
 MICRO_BATCHSIZE=8
-GLOBAL_BATCH_SIZE=$((MICRO_BATCHSIZE * DP_SIZE))
+GLOBAL_BATCH_SIZE=$((${MICRO_BATCHSIZE} * ${GRAD_ACCUMULATION_STEPS} * ${DP_SIZE}))
 
 SEQ_LENGTH=1024
 MAX_POSITION_EMBEDDINGS=1024
@@ -40,7 +40,6 @@ SAVE_INTERVAL=10000
 LR_DECAY_ITERATIONS=320000
 
 LR=0.00015
-LR_WARMUP_ITER=32000
 SEED=1234
 
 # deepspeed configuration
@@ -78,7 +77,7 @@ deepspeed --num_nodes ${NUM_NODES} \
   --min-lr 1.0e-5 \
   --weight-decay 1e-2 \
   --clip-grad 1.0 \
-  --lr-warmup-iters $LR_WARMUP_ITER \
+  --lr-warmup-fraction .01 \
   --checkpoint-activations \
   --log-interval 1 \
   --eval-interval 1000 \
