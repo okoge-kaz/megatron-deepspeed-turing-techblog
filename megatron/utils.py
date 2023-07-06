@@ -220,21 +220,31 @@ def get_parameters_in_billions(model):
     return approx_parameters_in_billions*gpus_per_model/(1e9)
 
 
-def get_model_parameters(model):
+def get_model_parameters(model) -> tuple[int, int]:
+    """
+    Returns the number of parameters in the model and the number of parameters in each gpu.
+
+    Args:
+        model (torch.nn.Module):
+
+    Returns:
+        models_parameters (int): number of parameters in the model
+        models_parameters_per_gpu (int): number of parameters in the model per gpu
+    """
     gpus_per_model = torch.distributed.get_world_size(group=mpu.get_model_parallel_group())
 
     models_parameters = sum([sum([p.ds_numel if hasattr(p,'ds_id') else  p.nelement() for p in model_module.parameters()])
                                         for model_module in model])
 
-    return models_parameters * gpus_per_model
+    return models_parameters * gpus_per_model, models_parameters * 1
 
 
 def throughput_calculator(model, args, iteration_time, total_iterations):
-    gpus_per_model = torch.distributed.get_world_size(group = mpu.get_model_parallel_group())
+    gpus_per_model: int = torch.distributed.get_world_size(group=mpu.get_model_parallel_group())
     batch_size = args.micro_batch_size * get_num_microbatches() * args.data_parallel_size
     samples_per_model = batch_size * args.seq_length
     model_replica_count = torch.distributed.get_world_size() / gpus_per_model
-    model_parameters = None if (model is None) else get_model_parameters(model)
+    model_parameters, models_parameters_per_gpu = (None, None) if (model is None) else get_model_parameters(model)
     elapsed_time_per_iter = iteration_time/total_iterations
     samples_per_second = batch_size / elapsed_time_per_iter
 
@@ -253,7 +263,7 @@ def throughput_calculator(model, args, iteration_time, total_iterations):
         seq_len = args.actual_seq_length
     flops_per_iteration = (24 * checkpoint_activations_factor * batch_size * seq_len * num_layers * (hidden_size**2)) * (1. + (seq_len / (6. * hidden_size)) + (vocab_size / (16. * num_layers * hidden_size)))
     tflops = flops_per_iteration / (elapsed_time_per_iter * args.world_size * (10**12))
-    return samples_per_second, tflops, model_parameters
+    return samples_per_second, tflops, model_parameters, models_parameters_per_gpu
 
 def checkpoint_throughput_calculator(model, latency_second):
     approx_parameters_in_billions = get_parameters_in_billions(model)
