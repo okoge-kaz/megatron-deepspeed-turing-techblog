@@ -63,6 +63,15 @@ def parse_args(extra_args_provider=None, defaults={},
     args.ds_pipeline_enabled = not args.no_pipeline_parallel
 
     # Distributed args.
+    if args.use_mpi:
+        global_rank = int(os.getenv('OMPI_COMM_WORLD_RANK', 0))
+        local_rank = int(os.getenv('OMPI_COMM_WORLD_LOCAL_RANK', 0))
+        world_size = int(os.getenv('OMPI_COMM_WORLD_SIZE', 1))
+
+        os.environ['RANK'] = str(global_rank)
+        os.environ['LOCAL_RANK'] = str(local_rank)
+        os.environ['WORLD_SIZE'] = str(world_size)
+
     args.rank = int(os.getenv('RANK', '0'))
     args.world_size = int(os.getenv("WORLD_SIZE", '1'))
     # Tensor model parallel size.
@@ -689,10 +698,12 @@ def _add_distributed_args(parser):
                        'skips DDP initialization and returns function to '
                        'complete it instead.Also turns on '
                        '--use-cpu-initialization flag. This is for '
-                       'external DDP manager.' )
+                       'external DDP manager.')
     group.add_argument('--use-cpu-initialization', action='store_true',
                        default=None, help='If set, affine parallel weights '
-                       'initialization uses CPU' )
+                       'initialization uses CPU')
+    group.add_argument('--use-mpi', action='store_true', default=False,
+                       help='Use MPI for distributed training.')
     return parser
 
 
