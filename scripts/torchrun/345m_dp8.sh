@@ -52,4 +52,4 @@ python -m torch.distributed.launch $DISTRIBUTED_ARGS \
   --fp16 \
   --log-batch-size-to-tensorboard \
   --log-validation-ppl-to-tensorboard \
-  --wandb-name "gpt2_345m_1node_8gpu-torch-distributed"
+  --wandb-name "gpt2_345m_1node_dp8-torch-distributed"
