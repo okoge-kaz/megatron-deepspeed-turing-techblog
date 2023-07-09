@@ -65,7 +65,7 @@ mpirun -np $WORLD_SIZE -machinefile ${PJM_O_NODEINF} \
   --lr-warmup-fraction .01 \
   --checkpoint-activations \
   --log-interval 1 \
-  --save-interval 10000 \
+  --save-interval 3000 \
   --eval-interval 1000 \
   --eval-iters 10 \
   --fp16 \
