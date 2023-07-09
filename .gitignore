@@ -1,6 +1,10 @@
 __pycache__
 .python-version
 
+*.err
+*.out
+.d000*
+
 # dependncies
 apex/
 
