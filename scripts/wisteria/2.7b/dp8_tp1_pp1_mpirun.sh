@@ -31,7 +31,7 @@ source .env/bin/activate
 
 # dataset, checkpoint path
 DATA_PATH=dataset/BookCorpusDataset_text_document
-CHECKPOINT_PATH=checkpoints/gpt_1.3b/${NNODES}node-${WORLD_SIZE}gpu-dp${DP_SIZE}-tp${TP_SIZE}-pp${PP_SIZE}-mpirun
+CHECKPOINT_PATH=checkpoints/gpt_2.7b/${NNODES}node-${WORLD_SIZE}gpu-dp${DP_SIZE}-tp${TP_SIZE}-pp${PP_SIZE}-mpirun
 
 mkdir -p $CHECKPOINT_PATH
 
