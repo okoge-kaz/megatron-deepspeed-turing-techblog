@@ -63,8 +63,8 @@ mpirun -np $WORLD_SIZE -machinefile ${PJM_O_NODEINF} \
   --global-batch-size $GLOBAL_BATCHSIZE \
   --seq-length $SEQ_LENGTH \
   --max-position-embeddings $MAX_POSITION_EMBEDDINGS \
-  --train-iters 500000 \
-  --lr-decay-iters 320000 \
+  --train-iters 100 \
+  --lr-decay-iters 80 \
   --save $CHECKPOINT_PATH \
   --load $CHECKPOINT_PATH \
   --data-path $DATA_PATH \
