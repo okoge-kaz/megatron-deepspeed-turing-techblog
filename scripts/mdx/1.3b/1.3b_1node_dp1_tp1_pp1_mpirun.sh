@@ -75,4 +75,4 @@ mpirun -np $WORLD_SIZE --npernode $GPUS_PER_NODE \
   --use-mpi \
   --log-batch-size-to-tensorboard \
   --log-validation-ppl-to-tensorboard \
-  --wandb-name "gpt2_1.3b_${NNODES}node_dp${DP_SIZE}-tp${TP_SIZE}-pp${PP_SIZE}-mpirun-mdx"
+  --wandb-name "gpt_1.3b_${NNODES}node_dp${DP_SIZE}-tp${TP_SIZE}-pp${PP_SIZE}-mpirun-mdx"
