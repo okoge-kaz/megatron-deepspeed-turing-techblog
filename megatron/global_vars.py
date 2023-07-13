@@ -168,12 +168,12 @@ def _set_wandb_writer(args):
             now = datetime.now()
             now = now.strftime("%Y-%m-%d-%H-%M-%S")
             exp_name = args.wandb_name + "-" + now
-            entity: str = args.wandb_entity or "okoge"
+            entity: str = args.wandb_entity or "toyolabo"
             wandb_input = {
                 "entity": entity,
                 "name": exp_name,
                 "config": args,
-                "project": "wisteria",
+                "project": "mdx-nvlink-test",
             }
             if args.wandb_id is not None:
                 wandb_input["id"] = args.wandb_id
