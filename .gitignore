@@ -32,6 +32,12 @@ dist/
 # AML workspace config file
 *config.json
 
+.coverage_*
+*~
+slurm*
+logs
+
+
 # python gitignore template
 # Byte-compiled / optimized / DLL files
 __pycache__/
