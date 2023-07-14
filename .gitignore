@@ -12,6 +12,8 @@ apex/
 # logging
 wandb/
 tensorboard/
+logs/
+hostfile*
 
 # dataset
 dataset/BookCorpusDataset*
