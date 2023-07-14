@@ -1110,6 +1110,10 @@ def _add_distributed_args(parser):
     group.add_argument('--no-scatter-gather-tensors-in-pipeline', action='store_false',
                        help='Use scatter/gather to optimize communication of tensors in pipeline',
                        dest='scatter_gather_tensors_in_pipeline')
+    group.add_argument('--use-ring-exchange-p2p', action='store_true',
+                       default=False, help='If set, use custom-built ring exchange '
+                       'for p2p communications. Note that this option will require '
+                       'a custom built image that support ring-exchange p2p.')
     group.add_argument('--local_rank', type=int, default=None,
                        help='local rank passed from distributed launcher.')
     group.add_argument('--lazy-mpu-init', type=bool, required=False,
@@ -1120,7 +1124,19 @@ def _add_distributed_args(parser):
                        'external DDP manager.')
     group.add_argument('--use-cpu-initialization', action='store_true',
                        default=None, help='If set, affine parallel weights '
-                       'initialization uses CPU' )
+                       'initialization uses CPU')
+    group.add_argument('--empty-unused-memory-level', default=0, type=int,
+                       choices=[0, 1, 2],
+                       help='Call torch.cuda.empty_cache() each iteration '
+                       '(training and eval), to reduce fragmentation.'
+                       '0=off, 1=moderate, 2=aggressive.')
+    group.add_argument('--standalone-embedding-stage', action='store_true',
+                       default=False, help='If set, *input* embedding layer '
+                       'is placed on its own pipeline stage, without any '
+                       'transformer layers. (For T5, this flag currently only '
+                       'affects the encoder embedding.)')
+    group.add_argument('--use-distributed-optimizer', action='store_true',
+                       help='Use distributed optimizer.')
     return parser
 
 
