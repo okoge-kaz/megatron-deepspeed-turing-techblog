@@ -5,6 +5,8 @@ __pycache__
 *.out
 .d000*
 checkpoints/*
+outputs/*
+dataset/index-cache/*
 
 # dependncies
 apex/
