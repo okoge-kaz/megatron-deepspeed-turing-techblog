@@ -11,3 +11,6 @@ numpy
 deepspeed
 wandb
 tensorboard
+
+# mpirun
+mpi4py
