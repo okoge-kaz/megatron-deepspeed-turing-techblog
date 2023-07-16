@@ -16,7 +16,7 @@ init_std=0.013
 ### Training duration configs
 ## The main termination condition, original GPT-3 paper trains for 300B tokens.
 train_tokens_in_billion=300
-train_tokens=$((${train_tokens_in_billion} * 1000000000))
+train_tokens=$((${train_tokens_in_billion} * 1000 * 1000 * 1000))
 
 ## train_samples is another termination condition and also affect the number of
 ## data samples to be indexed. Since we want to reach the train_tokens
@@ -59,7 +59,7 @@ no_pp="false"
 ## ZeRO-based data parallelism, stage=0 will disable ZeRO
 zero_stage=1
 
-## Total number of GPUs. ds_ssh is from DeepSpeed library.
+## Total number of GPUs
 num_gpus_pernode=8
 num_node=2
 num_gpus=$((${num_gpus_pernode} * ${num_node}))
@@ -89,44 +89,40 @@ save_interval=100
 # activation_checkpoint="true"
 activation_checkpoint="false"
 
-## Whether or not log optimizer states (norms, max abs values) to tensorboard.
-## This is not required for training and might save GPU memory when turned off.
-log_optimizer_state="true"
-###############################################################################
 ### Output and data configs
 current_time=$(date "+%Y.%m.%d_%H.%M.%S")
 host="${HOSTNAME}"
 seed=1234
-num_workers=0
+num_workers=2
 
-## Public the Pile dataset, can be downloaded at
-## https://mystic.the-eye.eu/public/AI/pile_neox/ or
-## https://the-eye.eu/public/AI/pile_neox/ Change data_home to where you
-## store the pile_text_document.bin and pile_text_document.idx.
-
+# dataset
 data_path="dataset/BookCorpusDataset_text_document"
 vocab_path="dataset/gpt2-vocab.json"
 merge_path="dataset/gpt2-merges.txt"
 
 prescale_grad="true"
-jobname="gpt_${model_size}B_tok${train_tokens_in_billion}B"
-jobname="${jobname}_lr${lr}_min${min_lr}_w${lr_warmup_tokens_in_million}M_d${lr_decay_tokens_in_billion}B_${lr_decay_style}"
-jobname="${jobname}_gbs${global_batch_size}_mbs${batch_size}_g${num_gpus}"
+
+# job name
+jobname="gpt_${model_size}B_token${train_tokens_in_billion}B"
+jobname="${jobname}_lr${lr}"
+jobname="${jobname}_gbs${global_batch_size}_mbs${batch_size}_gpu${num_gpus}"
+
 if [[ $zero_stage -gt 0 ]]; then
-  jobname="${jobname}_z${zero_stage}"
+  jobname="${jobname}_zero${zero_stage}"
   prescale_grad="false"
 fi
 if [[ $mp_size -gt 1 ]]; then
-  jobname="${jobname}_mp${mp_size}"
+  jobname="${jobname}_tp${mp_size}"
 fi
 if [ "${no_pp}" = "false" ]; then
   jobname="${jobname}_pp${pp_size}"
 fi
-jobname="${jobname}_seed${seed}_rebase"
 
+# output dir
 output_home="outputs"
 log_path="${output_home}/log/"
 checkpoint_path="${output_home}/checkpoint/${jobname}"
+
 ## Microsoft internal constraint: because tensorboard is logged by last rank,
 ## it's better to put the path in NFS instead of Blob.
 tensorboard_dir="${output_home}/tensorboard/"
@@ -134,6 +130,7 @@ tensorboard_path="${tensorboard_dir}${jobname}_${host}_${current_time}"
 mkdir -p ${log_path}
 mkdir -p ${checkpoint_path}
 mkdir -p ${tensorboard_path}
+
 ###############################################################################
 data_options=" \
     --vocab-file ${vocab_path} \
@@ -190,11 +187,16 @@ if [ "${activation_checkpoint}" = "true" ]; then
     --checkpoint-activations"
 fi
 
+## Whether or not log optimizer states (norms, max abs values) to tensorboard.
+## This is not required for training and might save GPU memory when turned off.
+log_optimizer_state="true"
+
 if [ "${log_optimizer_state}" = "true" ]; then
   megatron_options="${megatron_options} \
     --log-optimizer-states-to-tensorboard"
 fi
 
+# DeepSpeed Config
 config_json="scripts/deepspeed/config/ds_config_gbs${global_batch_size}_mbs${batch_size}_log${log_interval}_zero${zero_stage}.json"
 template_json="examples_deepspeed/rebase/ds_config_gpt_TEMPLATE.json"
 sed "s/GBSIZE/${global_batch_size}/" ${template_json} |
@@ -242,6 +244,8 @@ fi
 hostfile="scripts/deepspeed/hostfile"
 
 source .env/bin/activate
+
+export NCCL_DEBUG=INFO
 
 deepspeed --num_nodes ${num_node} \
   --num_gpus ${num_gpus_pernode} \
