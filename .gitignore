@@ -10,6 +10,8 @@ dataset/index-cache/*
 
 # dependncies
 apex/
+triton/
+flash-attention/
 
 # logging
 wandb/
