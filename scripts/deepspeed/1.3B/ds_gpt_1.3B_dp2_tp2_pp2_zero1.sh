@@ -240,5 +240,5 @@ fi
 deepspeed pretrain_gpt.py ${megatron_options} \
   ${data_options} \
   ${deepspeed_options} \
-  --wandb-name ${jobname} \
+  --wandb-name "deepspeed-${jobname}" \
   &>>${log_path}/${jobname}_${host}_${current_time}.log

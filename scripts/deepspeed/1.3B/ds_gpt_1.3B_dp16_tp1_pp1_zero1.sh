@@ -48,12 +48,12 @@ lr_decay_style="cosine"
 ###############################################################################
 ### Parallelism configs
 ## Model parallelism, 1 is no MP
-mp_size=2 # tensor model parallel size
+mp_size=1 # tensor model parallel size
 
 ## Pipeline parallelism. To disable PP, set pp_size to 1 and no_pp to true.
 ## Note that currently both curriculum learning and random-LTD are NOT
 ## compatible with pipeline parallelism.
-pp_size=2
+pp_size=1
 no_pp="false"
 
 ## ZeRO-based data parallelism, stage=0 will disable ZeRO
@@ -176,7 +176,6 @@ megatron_options=" \
     --load ${checkpoint_path} \
     --save ${checkpoint_path} \
     --no-async-tensor-model-parallel-allreduce \
-    --use-flash-attn \
     --tensorboard-queue-size 1 \
     --log-timers-to-tensorboard \
     --log-batch-size-to-tensorboard \
@@ -198,7 +197,7 @@ if [ "${log_optimizer_state}" = "true" ]; then
 fi
 
 # DeepSpeed Config
-config_json="scripts/deepspeed/1.3B/config/ds_config_gbs${global_batch_size}_mbs${batch_size}_log${log_interval}_zero${zero_stage}.json"
+config_json="scripts/deepspeed/config/ds_config_gbs${global_batch_size}_mbs${batch_size}_log${log_interval}_zero${zero_stage}.json"
 template_json="examples_deepspeed/rebase/ds_config_gpt_TEMPLATE.json"
 sed "s/GBSIZE/${global_batch_size}/" ${template_json} |
   sed "s/MBSIZE/${batch_size}/" |
@@ -242,6 +241,7 @@ if [[ $iteration -gt 0 ]]; then
 fi
 
 # hostfile
+hostfile="scripts/deepspeed/hostfile"
 
 source .env/bin/activate
 
@@ -249,10 +249,10 @@ export NCCL_DEBUG=INFO
 
 deepspeed --num_nodes ${num_node} \
   --num_gpus ${num_gpus_pernode} \
-  --hostfile scripts/deepspeed/1.3B/hostfile \
+  --hostfile ${hostfile} \
   pretrain_gpt.py \
   ${megatron_options} \
   ${data_options} \
   ${deepspeed_options} \
-  --wandb-name ${jobname} \
+  --wandb-name "deepspeed-${jobname}" \
   &>>${log_path}/${jobname}_${host}_${current_time}.log
