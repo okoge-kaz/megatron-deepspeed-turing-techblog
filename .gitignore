@@ -7,6 +7,7 @@ __pycache__
 checkpoints/*
 outputs/*
 dataset/index-cache/*
+scripts/deepspeed/config/*
 
 # dependncies
 apex/
