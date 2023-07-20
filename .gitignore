@@ -20,7 +20,9 @@ flash-attention/
 wandb/
 tensorboard/
 logs/
-hostfile*
+
+hostfile/*
+!hostfile/.gitkeep
 
 # dataset
 dataset/BookCorpusDataset*
