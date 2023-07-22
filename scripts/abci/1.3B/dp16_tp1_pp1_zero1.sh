@@ -142,7 +142,7 @@ jobname="${jobname}_seed${seed}_rebase"
 
 output_home="outputs"
 log_path="${output_home}/log/"
-checkpoint_path="${output_home}/checkpoint/${jobname}"
+checkpoint_path="/groups/gcf51174/checkpoints/new-megatron-deepspeed/mpirun/${jobname}"
 ## Microsoft internal constraint: because tensorboard is logged by last rank,
 ## it's better to put the path in NFS instead of Blob.
 tensorboard_dir="${output_home}/tensorboard/"
